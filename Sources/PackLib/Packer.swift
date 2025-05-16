@@ -10,44 +10,11 @@ public struct Packer: Sendable {
     }
 
     private func build() async throws {
-        let xtoolDir = URL(fileURLWithPath: "xtool")
-        let packageDir = xtoolDir.appendingPathComponent(".xtool-tmp")
-        try? FileManager.default.removeItem(at: packageDir)
-        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
-
-        let packageSwift = packageDir.appendingPathComponent("Package.swift")
-        let contents = """
-        // swift-tools-version: 6.0
-        import PackageDescription
-        let package = Package(
-            name: "\(plan.product)-Builder",
-            platforms: [
-                .iOS("\(plan.deploymentTarget)"),
-            ],
-            dependencies: [
-                .package(name: "RootPackage", path: "../.."),
-            ],
-            targets: [
-                .executableTarget(
-                    name: "\(plan.product)-App",
-                    dependencies: [
-                        .product(name: "\(plan.product)", package: "RootPackage"),
-                    ]
-                ),
-            ]
-        )\n
-        """
-        try Data(contents.utf8).write(to: packageSwift)
-        let sources = packageDir.appendingPathComponent("Sources")
-        try? FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
-        try Data().write(to: sources.appendingPathComponent("stub.c"))
-
         let builder = try await buildSettings.swiftPMInvocation(
             forTool: "build",
             arguments: [
-                "--package-path", packageDir.path,
                 "--scratch-path", ".build",
-                "--product", "\(plan.product)-App",
+                "--product", plan.product,
                 // resolving can cause SwiftPM to overwrite the root package deps
                 // with just the deps needed for the builder package (which is to
                 // say, any "dev dependencies" of the root package may be removed.)
@@ -120,7 +87,7 @@ public struct Packer: Sendable {
                 }
             }
             group.addTask {
-                try await packFile(srcName: "\(plan.product)-App", dstName: plan.product)
+                try await packFile(srcName: plan.product, dstName: plan.product)
             }
             group.addTask {
                 var info = plan.infoPlist
