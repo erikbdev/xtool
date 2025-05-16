@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:xtool}",
+      "name": "Debug xtool",
+      "program": "${workspaceFolder:xtool}/.build/debug/xtool",
+      "preLaunchTask": "swift: Build Debug xtool"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:xtool}",
+      "name": "Release xtool",
+      "program": "${workspaceFolder:xtool}/.build/release/xtool",
+      "preLaunchTask": "swift: Build Release xtool"
+    }
+  ]
+}
