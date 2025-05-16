@@ -66,16 +66,16 @@ public struct Planner: Sendable {
         let rootPackage = packages[dependencyRoot.identity]!
         let deploymentTarget = rootPackage.platforms?.first { $0.name == "ios" }?.version ?? "13.0"
 
-        let libraries = rootPackage.products?.filter { $0.type == .autoLibrary } ?? []
+        let executables = rootPackage.products?.filter { $0.type == .executable } ?? []
 
-        let library = try selectLibrary(
-            from: libraries,
+        let executable = try selectExecutable(
+            from: executables,
             matching: schema.base.product
         )
 
         var resources: [Resource] = []
         var visited: Set<String> = []
-        var targets = library.targets.map { (rootPackage, $0) }
+        var targets = executable.targets.map { (rootPackage, $0) }
         while let (targetPackage, targetName) = targets.popLast() {
             guard let target = targetPackage.targets?.first(where: { $0.name == targetName }) else {
                 throw StringError("Could not find target '\(targetName)' in package '\(targetPackage.name)'")
@@ -111,7 +111,7 @@ public struct Planner: Sendable {
             resources += rootResources.map { .root(source: $0) }
         }
 
-        let bundleID = schema.idSpecifier.formBundleID(product: library.name)
+        let bundleID = schema.idSpecifier.formBundleID(product: executable.name)
 
         var infoPlist: [String: Sendable] = [
             "CFBundleInfoDictionaryVersion": "6.0",
@@ -133,8 +133,8 @@ public struct Planner: Sendable {
             "CFBundleShortVersionString": "1.0.0",
             "MinimumOSVersion": deploymentTarget,
             "CFBundleIdentifier": bundleID,
-            "CFBundleName": "\(library.name)",
-            "CFBundleExecutable": "\(library.name)",
+            "CFBundleName": "\(executable.name)",
+            "CFBundleExecutable": "\(executable.name)",
         ]
 
         if let plist = self.schema.base.infoPath {
@@ -148,7 +148,7 @@ public struct Planner: Sendable {
         }
 
         return Plan(
-            product: library.name,
+            product: executable.name,
             deploymentTarget: deploymentTarget,
             bundleID: bundleID,
             infoPlist: infoPlist,
@@ -176,13 +176,13 @@ public struct Planner: Sendable {
         return try await task
     }
 
-    private func selectLibrary(
+    private func selectExecutable(
         from products: [PackageDump.Product],
         matching name: String?
     ) throws -> PackageDump.Product {
         switch products.count {
         case 0:
-            throw StringError("No library products were found in the package")
+            throw StringError("No executable products were found in the package")
         case 1:
             let product = products[0]
             if let name, product.name != name {
@@ -194,8 +194,8 @@ public struct Planner: Sendable {
         default:
             guard let name else {
                 throw StringError("""
-                Multiple library products were found (\(products.map(\.name))). Please either:
-                1) Expose exactly one library product, or
+                Multiple executable products were found (\(products.map(\.name))). Please either:
+                1) Expose exactly one executable product, or
                 2) Specify the product you want via the 'product' key in xtool.yml.
                 """)
             }
