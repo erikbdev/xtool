@@ -27,6 +27,11 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "XToolProductTypes", 
+            type: .dynamic,
+            targets: ["XToolProductTypes"]
+        ),
+        .library(
             name: "XKit",
             targets: ["XKit"]
         ),
@@ -37,7 +42,7 @@ let package = Package(
         .executable(
             name: "xtool",
             targets: ["xtool"]
-        ),
+        )
     ],
     dependencies: [
         .package(url: "https://github.com/xtool-org/xtool-core", .upToNextMinor(from: "1.4.0")),
@@ -72,6 +77,12 @@ let package = Package(
     ],
     targets: [
         .systemLibrary(name: "XADI"),
+        .target(
+            name: "XToolProductTypes",
+            swiftSettings: [
+                .unsafeFlags(["-Xfrontend", "-module-link-name", "-Xfrontend", "XToolProductTypes"])
+            ]
+        ),
         .target(
             name: "CXKit",
             dependencies: [
