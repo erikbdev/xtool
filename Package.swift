@@ -57,7 +57,8 @@ let productTypesSwiftCArgs: [SwiftSetting] = if let manifestLibURL {
         .unsafeFlags(["-L", manifestLibURL.path(percentEncoded: false)]),
         .unsafeFlags(["-I", manifestLibURL.path(percentEncoded: false)]),
         .unsafeFlags(["-lPackageDescription"]),
-        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", manifestLibURL.path(percentEncoded: false)])
+        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", manifestLibURL.path(percentEncoded: false)]),
+        .unsafeFlags(["-package-description-version", "999.0"])
     ]
 } else {
     []
