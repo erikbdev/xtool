@@ -29,6 +29,9 @@ add_library(XToolProductTypes
   Sources/XToolProductTypes/ProductSchema.swift
 )
 
+target_compile_options(XToolProductTypes PUBLIC
+  $<$<COMPILE_LANGUAGE:Swift>:-package-description-version$<SEMICOLON>999.0>)
+
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL Darwin)
   target_link_options(XToolProductTypes PRIVATE
     "SHELL:-Xlinker -install_name -Xlinker @rpath/libXToolProductTypes.dylib")

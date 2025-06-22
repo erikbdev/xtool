@@ -1,6 +1,11 @@
 // swift-tools-version:6.0
 
 import PackageDescription
+import struct Foundation.URL
+import class Foundation.Process
+import class Foundation.FileManager
+import class Foundation.Pipe
+import class Foundation.JSONSerialization
 
 let xtoolVersion: String? = {
     if let explicitVersion = Context.environment["XTOOL_VERSION"] {
@@ -14,6 +19,49 @@ let xtoolVersion: String? = {
         return nil
     }
 }()
+
+let manifestLibURL: URL? = {
+    guard let environmentPath = Context.environment["PATH"],
+        let executableURL = environmentPath.split(separator: ":")
+            .lazy
+            .compactMap({ URL(fileURLWithPath: String($0)) })
+            .map({ $0.appending(component: "swift") })
+            .first(where: { FileManager.default.isExecutableFile(atPath: $0.path(percentEncoded: false)) }) else {
+        return nil
+    }
+    let process = Process()
+    process.executableURL = executableURL
+    process.arguments = ["-print-target-info"]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    do {
+        try process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let jsonString = String(data: data, encoding: .utf8),
+              let json = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? [String: Any],
+              let paths = json["paths"] as? [String: Any],
+              let runtimeResourcePath = paths["runtimeResourcePath"] as? String else {
+            return nil
+        }
+        return URL(fileURLWithPath: runtimeResourcePath)
+            .appending(path: "pm", directoryHint: .isDirectory)
+            .appending(path: "ManifestAPI", directoryHint: .isDirectory)
+    } catch {
+        return nil
+    }
+}()
+
+let productTypesSwiftCArgs: [SwiftSetting] = if let manifestLibURL {
+    [
+        .unsafeFlags(["-L", manifestLibURL.path(percentEncoded: false)]),
+        .unsafeFlags(["-I", manifestLibURL.path(percentEncoded: false)]),
+        .unsafeFlags(["-lPackageDescription"]),
+        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", manifestLibURL.path(percentEncoded: false)])
+    ]
+} else {
+    []
+}
 
 let cSettings: [CSetting] = [
     .define("_GNU_SOURCE", .when(platforms: [.linux])),
@@ -79,8 +127,8 @@ let package = Package(
         .systemLibrary(name: "XADI"),
         .target(
             name: "XToolProductTypes",
-            swiftSettings: [
-                .unsafeFlags(["-Xfrontend", "-module-link-name", "-Xfrontend", "XToolProductTypes"])
+            swiftSettings: productTypesSwiftCArgs + [
+                .unsafeFlags(["-Xfrontend", "-module-link-name", "-Xfrontend", "XToolProductTypes"]),
             ]
         ),
         .target(

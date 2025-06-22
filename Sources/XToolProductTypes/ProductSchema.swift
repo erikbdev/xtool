@@ -1,19 +1,19 @@
-public struct ProductSchema: Codable, Equatable, Hashable, Sendable {
-  /// The name of the target.
-  public let name: String
-  /// The type of build product this target will output.
-  public let targets: [String]
-  /// The product bundle identifier. If nil, it will fallback to `organizationId`.`name`
-  public let bundleIdentifier: String?
-  public let infoPlist: InfoPlist?
-  public let entitlements: Entitlements?
+import PackageDescription
 
-  public init(
+struct ProductSchema: Codable, Equatable, Hashable, Sendable {
+  let name: String
+  let targets: [String]
+  let bundleIdentifier: String?
+  let infoPlist: PackageDescription.Product.InfoPlist?
+  let entitlements: PackageDescription.Product.Entitlements?
+
+  @discardableResult
+  init(
     name: String,
     targets: [String],
     bundleIdentifier: String? = nil,
-    infoPlist: InfoPlist? = nil,
-    entitlements: Entitlements? = nil
+    infoPlist: PackageDescription.Product.InfoPlist? = nil,
+    entitlements: PackageDescription.Product.Entitlements? = nil
   ) {
     self.name = name
     self.targets = targets
@@ -23,6 +23,3 @@ public struct ProductSchema: Codable, Equatable, Hashable, Sendable {
     dumpIfNeeded(self)
   }
 }
-
-public typealias InfoPlist = [String: String]
-public typealias Entitlements = [String: String]
