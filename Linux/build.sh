@@ -13,9 +13,11 @@ fi
 rm -rf staging/tmp
 mkdir -p staging/tmp staging/linuxdeploy
 
+SWIFT_RESOURCE_PATH="$(swift -print-target-info | grep '"runtimeResourcePath"' | cut -d '"' -f4)" swift build --package-path .. -c release --product XToolProductTypes
 swift build --package-path .. -c release --product xtool --static-swift-stdlib
 bin="$(swift build --package-path .. -c release --show-bin-path)"
 strip "${bin}/xtool"
+strip --strip-debug "${bin}/libXToolProductTypes.so"
 
 curr_git_info="$(curl -fsSL https://api.github.com/repos/linuxdeploy/linuxdeploy/git/refs/tags/continuous)"
 curr_arch="$(uname -m)"
@@ -38,6 +40,7 @@ if [[ ! -f staging/linuxdeploy/linuxdeploy.AppImage ]]; then
 fi
 
 mkdir -p staging/tmp/AppDir/usr/bin
+mkdir -p staging/tmp/AppDir/usr/lib
 find "${bin}"/ -name '*.resources' -print0 | xargs -0 -I {} cp -a {} "${PWD}/staging/tmp/AppDir/usr/bin/"
 
 export LINUXDEPLOY_OUTPUT_VERSION="${XTOOL_VERSION:-unversioned}"
@@ -48,7 +51,8 @@ export LDAI_UPDATE_INFORMATION="gh-releases-zsync|xtool-org|xtool|latest|xtool-$
     --output appimage \
     -e "${bin}/xtool" \
     -d xtool.desktop \
-    -i xtool.png
+    -i xtool.png \
+    -l "${bin}/libXToolProductTypes.so"
 mkdir -p packages
 mv -f "staging/tmp/xtool-${curr_arch}.AppImage" "./xtool-${curr_arch}.AppImage.zsync" packages/
 

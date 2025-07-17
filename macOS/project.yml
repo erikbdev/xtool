@@ -25,3 +25,9 @@ targets:
     dependencies:
       - package: xtool
         product: XToolSupport
+      - package: xtool
+        product: XTooProductTypes
+        embed: true
+        copy:
+          destination: resources
+          subpath: lib

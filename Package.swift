@@ -2,10 +2,6 @@
 
 import PackageDescription
 import struct Foundation.URL
-import class Foundation.Process
-import class Foundation.FileManager
-import class Foundation.Pipe
-import class Foundation.JSONSerialization
 
 let xtoolVersion: String? = {
     if let explicitVersion = Context.environment["XTOOL_VERSION"] {
@@ -20,45 +16,33 @@ let xtoolVersion: String? = {
     }
 }()
 
-let manifestLibURL: URL? = {
-    guard let environmentPath = Context.environment["PATH"],
-        let executableURL = environmentPath.split(separator: ":")
-            .lazy
-            .compactMap({ URL(fileURLWithPath: String($0)) })
-            .map({ $0.appending(component: "swift") })
-            .first(where: { FileManager.default.isExecutableFile(atPath: $0.path(percentEncoded: false)) }) else {
-        return nil
+// The manifest library directory where libPackageDescription.dylib (or libPackageDescription.so on linux)
+// is located.
+//
+// You can get this information by running `swift -print-target-info` and parsing "paths.runtimeResourcePath"
+let manifestPath: URL? = {
+    var path = Context.environment["SWIFT_RESOURCE_PATH"]
+
+    if path == nil {
+        //if on mac infer from Xcode
+        #if os(macOS)
+        path = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
+        #endif
     }
-    let process = Process()
-    process.executableURL = executableURL
-    process.arguments = ["-print-target-info"]
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    do {
-        try process.run()
-        process.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let jsonString = String(data: data, encoding: .utf8),
-              let json = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? [String: Any],
-              let paths = json["paths"] as? [String: Any],
-              let runtimeResourcePath = paths["runtimeResourcePath"] as? String else {
-            return nil
-        }
-        return URL(fileURLWithPath: runtimeResourcePath)
-            .appending(path: "pm", directoryHint: .isDirectory)
-            .appending(path: "ManifestAPI", directoryHint: .isDirectory)
-    } catch {
-        return nil
-    }
+
+    return path.flatMap { URL(filePath: $0) }?
+        .appendingPathComponent("pm", isDirectory: true)
+        .appendingPathComponent("ManifestAPI", isDirectory: true)
 }()
 
-let productTypesSwiftCArgs: [SwiftSetting] = if let manifestLibURL {
+let productTypesSwiftArgs: [SwiftSetting] = if let manifestPath {
     [
-        .unsafeFlags(["-L", manifestLibURL.path(percentEncoded: false)]),
-        .unsafeFlags(["-I", manifestLibURL.path(percentEncoded: false)]),
+        .unsafeFlags(["-L", manifestPath.path]),
+        .unsafeFlags(["-I", manifestPath.path]),
         .unsafeFlags(["-lPackageDescription"]),
-        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", manifestLibURL.path(percentEncoded: false)]),
-        .unsafeFlags(["-package-description-version", "999.0"])
+        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", manifestPath.path]),
+        .unsafeFlags(["-package-description-version", "999.0"]),
+        .unsafeFlags(["-Xfrontend", "-module-link-name", "-Xfrontend", "XToolProductTypes"]),
     ]
 } else {
     []
@@ -128,9 +112,7 @@ let package = Package(
         .systemLibrary(name: "XADI"),
         .target(
             name: "XToolProductTypes",
-            swiftSettings: productTypesSwiftCArgs + [
-                .unsafeFlags(["-Xfrontend", "-module-link-name", "-Xfrontend", "XToolProductTypes"]),
-            ]
+            swiftSettings: productTypesSwiftArgs
         ),
         .target(
             name: "CXKit",
